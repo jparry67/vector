@@ -10,7 +10,7 @@ Since I'm on Windows the steps are:
 - run python main.py in this project and leave it running in the background all day
 - while running, logs are captured in `logs.txt` in the project directory
 
-# First time setup
+# First time Signal setup
 Here's what I did (I ran all these curl commands in Linux on WSL on my Windows machine since powershell is annoying):
 - got a phone number from Google Voice
 - got docker container up and running, check that it's working by running `curl http://localhost:7388/v1/about` 
@@ -20,3 +20,4 @@ Here's what I did (I ran all these curl commands in Linux on WSL on my Windows m
 - Then I got the text on my Google Voice account with a 6 digit code! Run `curl -X POST -H "Content-Type: application/json" http://localhost:7388/v1/register/+1{NUMBER}/verify/{CODE}` to verify
 - At this point, I was able to send myself a message and verified that it worked! `curl -X POST -H "Content-Type: application/json" -d '{"message": "Hello from Vector!", "number": "+1{NUMBER}", "recipients": ["+1{MY_NUMBER}"]}' http://localhost:7388/v2/send`
 - I also wanted to set my profile name and have a cool profile picture: `curl -X PUT -H "Content-Type: application/json" -d '{"name": "Vector", "base64_avatar": "{SUPER_LONG_BASE64_PNG}"}' http://localhost:7388/v1/profiles/+1{NUMBER}`
+This link is super useful for seeing everything you can do with this API: https://bbernhard.github.io/signal-cli-rest-api/#/

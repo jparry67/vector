@@ -5,7 +5,7 @@ from vector import Vector
 
 logger = get_logger(__name__)
 
-KICKOFF_TIME = "8:30"
+KICKOFF_TIME = "08:30"
 WRAPUP_TIME = "16:30"
 
 def main():

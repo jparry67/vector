@@ -15,7 +15,7 @@ if not api_key:
 class LLM:
     def __init__(self, system_prompt, response_schema, callback):
         self.callback = callback
-        self.client = genai.Client(api_key)
+        self.client = genai.Client(api_key=api_key)
         self.chat = self.client.chats.create(
             model=MODEL,
             config={
