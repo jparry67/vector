@@ -2,7 +2,11 @@ import json
 import schedule
 import textwrap
 import time
-from llm import LLM
+from datetime import date
+
+import tasks_db
+# from llm_gemini import LLMGemini
+from llm_local import LLMLocal
 from logger import get_logger
 from messenger import Messenger
 
@@ -14,19 +18,44 @@ LLM_RESPONSE_SCHEMA = {
         "type": "OBJECT",
         "properties": {
             "operation": {
-                "type": "STRING", 
-                "enum": ["send_message", "schedule_message"]
+                "type": "STRING",
+                "enum": [
+                    "send_message",
+                    "schedule_message",
+                    "create_task",
+                    "edit_task",
+                    "complete_task",
+                    "delete_task"
+                ]
             },
-            "content": {"type": "STRING"},
-            "time": {"type": "STRING", "nullable": True}
+            "content": {"type": "STRING", "nullable": True},
+            "time": {"type": "STRING", "nullable": True},
+            "task_id": {"type": "INTEGER", "nullable": True},
+            "title": {"type": "STRING", "nullable": True},
+            "notes": {"type": "STRING", "nullable": True},
+            "priority": {"type": "INTEGER", "nullable": True},
+            "target_date": {"type": "STRING", "nullable": True}
         },
-        "required": ["operation", "content"]
+        "required": ["operation"]
     }
 }
 
+tasks_db.init_db()
+
 def load_prompt(name: str) -> str:
     with open(f"prompts/{name}.txt", "r", encoding="utf-8") as f:
-        return f.read()
+        prompt = f.read()
+
+    if "{all_open_tasks}" in prompt:
+        tasks = tasks_db.get_formatted_open_tasks()
+        prompt = prompt.replace("{all_open_tasks}", tasks)
+    
+    if "{today}" in prompt:
+        today = date.today()
+        formatted_date = today.strftime("%Y-%m-%d (%A)")
+        prompt = prompt.replace("{today}", formatted_date)
+
+    return prompt
 
 class Vector:
     def __init__(self):
@@ -34,7 +63,9 @@ class Vector:
         self.messenger = Messenger()
         self.messenger.set_default_callback(self.handle_user_response)
         schedule.every(10).seconds.do(self.messenger.receive_messages)
-        self.llm = LLM(load_prompt("system_prompt"), LLM_RESPONSE_SCHEMA, self.handle_llm_response)
+        system_prompt = load_prompt("system_prompt_short")
+        # self.llm = LLMGemini(system_prompt, response_schema, self.handle_llm_response)
+        self.llm = LLMLocal(system_prompt, self.handle_llm_response)
 
     def kickoff_day(self):
         self.messenger.show_typing_indicator()
@@ -66,15 +97,41 @@ class Vector:
             
             for op in operations:
                 operation_type = op.get("operation")
-                content = op.get("content")
-                time = op.get("time")
 
                 match operation_type:
                     case "send_message":
-                        self.send_user_message(content)
+                        self.send_user_message(op.get("content"))
 
                     case "schedule_message":
-                        schedule.every().day.at(time).do(self.schedule_send_user_message, message=content)
+                        schedule.every().day.at(op.get("time")).do(self.schedule_send_user_message, message=op.get("content"))
+
+                    case "create_task":
+                        created_task = tasks_db.create_task(
+                            title=op.get("title"),
+                            notes=op.get("notes"),
+                            priority=op.get("priority"),
+                            target_date=op.get("target_date")
+                        )
+                        self.llm.send_message(f"Created task successfully: {json.dumps(created_task)}")
+
+                    case "edit_task":
+                        updated_task = tasks_db.edit_task(
+                            task_id=op.get("task_id"),
+                            title=op.get("title"),
+                            notes=op.get("notes"),
+                            priority=op.get("priority"),
+                            target_date=op.get("target_date")
+                        )
+                        self.llm.send_message(f"Updated task successfully: {json.dumps(updated_task)}")
+
+                    case "complete_task":
+                        updated_task = tasks_db.complete_task(task_id=op.get("task_id"))
+                        self.llm.send_message(f"Updated task successfully: {json.dumps(updated_task)}")
+
+                    case "delete_task":
+                        task_deleted = tasks_db.delete_task(task_id=op.get("task_id"))
+                        if task_deleted:
+                            self.llm.send_message("Successfully deleted task")
 
                     case _:
                         logger.error(f"Unknown operation received: {operation_type}")

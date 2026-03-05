@@ -1,1 +1,3 @@
-It's the start of a new day. Send a friendly message to Jacob asking them when they want to schedule focus time for and what tasks they're planning on working on today.
+It's the start of a new day! Send a friendly message to Jacob asking them when they want to schedule focus time for and suggest they work on a couple high priority open tasks.
+Here are the current tasks:
+{all_open_tasks}
