@@ -86,10 +86,67 @@ class Vector:
         return schedule.CancelJob
 
     def handle_user_response(self, message):
+        if self.handle_command(message):
+            return
         self.messenger.show_typing_indicator()
         blockquoted_message = textwrap.indent(message, '> ')
         llm_prompt = load_prompt("user_response").replace("{blockquoted_message}", blockquoted_message)
         self.llm.send_message(llm_prompt)
+
+    def handle_command(self, message: str) -> bool:
+        lower = message.strip().lower()
+
+        if lower.startswith("list tasks"):
+            formatted = tasks_db.get_formatted_open_tasks()
+            self.send_user_message(f"Here are your open tasks:\n{formatted}")
+            return True
+
+        if lower.startswith("add task"):
+            task_info = message[len("add task"):].strip().split('\n')
+            if len(task_info) != 4:
+                self.send_user_message("Please provide all task info separated by new lines. e.g...")
+                self.send_user_message("Add task\nCreate POC of project\nWe need to make sure to use the right API.\n2\n2026-03-05")
+                return True
+            title,notes,priority,target_date = task_info
+            task = tasks_db.create_task(title=title, notes=notes, priority=int(priority), target_date=target_date)
+            self.send_user_message(f"Task added: [{task['id']}] ✅\n{task['title']}\n{task['notes']}\n{task['priority']}\n{task['target_date']}")
+            return True
+
+        if lower.startswith("complete task"):
+            arg = message[len("complete task"):].strip()
+            try:
+                task_id = int(arg)
+                task = tasks_db.complete_task(task_id=task_id)
+                if task:
+                    self.send_user_message(f"Marked complete: [{task['id']}] {task['title']} 🏁")
+                else:
+                    self.send_user_message(f"Couldn't find task {task_id}.")
+            except ValueError:
+                self.send_user_message("Please provide a task ID. e.g. 'Complete task 3'")
+            return True
+
+        if lower.startswith("delete task"):
+            arg = message[len("delete task"):].strip()
+            try:
+                task_id = int(arg)
+                tasks_db.delete_task(task_id=task_id)
+                self.send_user_message(f"Task {task_id} deleted. 🗑️")
+            except ValueError:
+                self.send_user_message("Please provide a task ID. e.g. 'Delete task 3'")
+            return True
+
+        if lower.startswith("edit task"):
+            task_info = message[len("edit task"):].strip().split('\n')
+            if len(task_info) != 5:
+                self.send_user_message("Please provide all task info separated by new lines. e.g...")
+                self.send_user_message("Edit task 3\nCreate POC of project\nWe need to make sure to use the right API.\n2\n2026-03-05")
+                return True
+            id,title,notes,priority,target_date = task_info
+            task = tasks_db.edit_task(task_id=int(id), title=title, notes=notes, priority=int(priority), target_date=target_date)
+            self.send_user_message(f"Task [{task['id']}] edited: ✅\n{task['title']}\n{task['notes']}\n{task['priority']}\n{task['target_date']}")
+            return True
+
+        return False
 
     def handle_llm_response(self, message):
         try:

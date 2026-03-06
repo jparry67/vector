@@ -59,7 +59,7 @@ def get_formatted_open_tasks() -> str:
     tasks = get_open_tasks()
     if not tasks:
         return "_No open tasks._"
-    lines = [f"- [{t['id']}] {t['title']} (priority: {t['priority'] or 'null'}, target_date: {t['target_date'] or 'null'})" for t in tasks]
+    lines = [f"- [{t['id']}] {t['title']} (priority: {t['priority'] or 'null'}, target_date: {t['target_date'] or 'null'}, notes: {t['notes']})" for t in tasks]
     return "\n".join(lines)
 
 def get_completed_tasks() -> list:
